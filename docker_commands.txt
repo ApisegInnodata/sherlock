@@ -1,0 +1,3 @@
+build: docker build -t sherlock/sherlock:latest .
+run: docker run --rm sherlock/sherlock:latest any_username
+ex: docker run --rm sherlock/sherlock:latest johndoe
