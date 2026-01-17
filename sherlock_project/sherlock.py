@@ -45,6 +45,43 @@ from colorama import init
 from argparse import ArgumentTypeError
 
 
+def _looks_like_waf(response_text: str) -> bool:
+    """
+    Return True only when the response body resembles a real WAF/bot challenge page.
+    Do NOT flag WAF just because a page contains "cloudflare" or generic CDN assets.
+    """
+    if not response_text:
+        return False
+
+    t = response_text.lower()
+
+    # Strong Cloudflare / WAF challenge markers
+    markers = (
+        "just a moment",
+        "checking your browser",
+        "attention required",
+        "/cdn-cgi/challenge-platform",
+        "/cdn-cgi/l/chk_jschl",
+        "cf-challenge",
+        "cf-error-code",
+        "why do i have to complete a captcha",
+        "verify you are human",
+        "unusual traffic",
+        "access denied",
+        "request blocked",
+        "blocked by security rules",
+        "ddos protection",
+    )
+    if any(m in t for m in markers):
+        return True
+
+    # HTML/title patterns typical of challenges
+    if re.search(r"<title>\s*just a moment\s*</title>", response_text, re.IGNORECASE):
+        return True
+
+    return False
+
+
 class SherlockFuturesSession(FuturesSession):
     def request(self, method, url, hooks=None, *args, **kwargs):
         """Request URL.
@@ -235,7 +272,14 @@ def sherlock(
         # A user agent is needed because some sites don't return the correct
         # information since they think that we are bots (Which we actually are...)
         headers = {
-            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:129.0) Gecko/20100101 Firefox/129.0",
+            # More "normal" UA tends to reduce WAF challenges on some sites.
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/125.0.0.0 Safari/537.36"
+            ),
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9",
         }
 
         if "headers" in net_info:
@@ -382,17 +426,18 @@ def sherlock(
         # here to filter results that fail to bypass WAFs. Fingerprints should
         # be highly targetted. Comment at the end of each fingerprint to
         # indicate target and date fingerprinted.
+        #
+        # Keep these as very specific fingerprints only.
         WAFHitMsgs = [
-            r'.loading-spinner{visibility:hidden}body.no-js .challenge-running{display:none}body.dark{background-color:#222;color:#d9d9d9}body.dark a{color:#fff}body.dark a:hover{color:#ee730a;text-decoration:underline}body.dark .lds-ring div{border-color:#999 transparent transparent}body.dark .font-red{color:#b20f03}body.dark', # 2024-05-13 Cloudflare
-            r'<span id="challenge-error-text">', # 2024-11-11 Cloudflare error page
-            r'AwsWafIntegration.forceRefreshToken', # 2024-11-11 Cloudfront (AWS)
-            r'{return l.onPageView}}),Object.defineProperty(r,"perimeterxIdentifiers",{enumerable:' # 2024-04-09 PerimeterX / Human Security
+            '<span id="challenge-error-text">',  # Cloudflare error page
+            "AwsWafIntegration.forceRefreshToken",  # CloudFront (AWS)
+            "perimeterxIdentifiers",  # PerimeterX / Human Security
         ]
 
         if error_text is not None:
             error_context = error_text
 
-        elif any(hitMsg in r.text for hitMsg in WAFHitMsgs):
+        elif _looks_like_waf(getattr(r, "text", "") or "") or any(hitMsg in r.text for hitMsg in WAFHitMsgs):
             query_status = QueryStatus.WAF
 
         else:
