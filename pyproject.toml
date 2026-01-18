@@ -51,7 +51,6 @@ dev = [
     "pytest>=8.4.2,<9",
     "pytest-xdist>=3.8.0,<4",
     "ruff",
-    "pytest",
     "coverage"
 ]
 ci = [
