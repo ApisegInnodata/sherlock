@@ -3,7 +3,7 @@ venv/
 bin/
 lib/
 pyvenv.cfg
-poetry.lock
+uv.lock
 
 # Regression Testing
 .coverage
