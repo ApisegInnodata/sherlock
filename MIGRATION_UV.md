@@ -20,8 +20,7 @@ docker build -t sherlock/sherlock:latest .
 
 # Run Image
 docker run --rm sherlock/sherlock:latest [any_username]
-
-Nothing has changed for end users - the package is still published to PyPI and works exactly the same.
+```
 
 ## For Developers
 
@@ -126,5 +125,6 @@ While we've migrated to UV, you can still use Poetry if needed by converting the
 
 - [UV Documentation](https://docs.astral.sh/uv/)
 - [PEP 621 - Storing project metadata in pyproject.toml](https://peps.python.org/pep-0621/)
+
 
 
